@@ -5,10 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Lift Log">
+<meta name="apple-mobile-web-app-title" content="Workout Tracker">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#F2F1EE">
-<title>Lift Log</title>
+<title>Workout Tracker</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com/3.4.17"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
@@ -24,7 +24,7 @@ input,select,textarea{font-size:16px}
 <body class="font-sans text-ink">
 <header class="sticky top-0 z-10 bg-chalk/95 backdrop-blur border-b-4 border-flame" style="padding-top:env(safe-area-inset-top,0px)">
   <div class="max-w-xl mx-auto px-4 pt-3">
-    <h1 class="font-display text-2xl font-bold tracking-wide">Lift Log</h1>
+    <h1 class="font-display text-2xl font-bold tracking-wide">Workout Tracker</h1>
     <nav id="nav" class="flex gap-1 -mb-px"></nav>
   </div>
 </header>
@@ -180,7 +180,7 @@ function exportData(){
 function importData(f){
   if(!f)return;const r=new FileReader();
   r.onload=()=>{try{const d=JSON.parse(r.result);if(!d.plans||!d.logs||!d.schedule||!d.maxes)throw 0;
-    if(!confirm('Replace all current data with this file?'))return;S=d;save();render();toast('Imported')}catch(e){toast('That file is not a Lift Log export')}};
+    if(!confirm('Replace all current data with this file?'))return;S=d;save();render();toast('Imported')}catch(e){toast('That file is not a  export')}};
   r.readAsText(f);
 }
 function clearSample(){
