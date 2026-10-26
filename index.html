@@ -64,14 +64,14 @@ const save=()=>{try{localStorage.setItem(K,JSON.stringify(S))}catch(e){toast('Co
 save();
 function toast(m){const t=$('#toast');t.textContent=m;t.style.opacity=1;setTimeout(()=>t.style.opacity=0,1800)}
 
-let tab='schedule', D={pid:null,sets:[]}, metric='vol', chart=null;
+let tab='schedule', D={pid:null,sets:[],extra:[]}, metric='vol', chart=null, EP=null;
 const TABS=[['schedule','Schedule'],['workout','Workout'],['analysis','Analysis']];
 const card='bg-white rounded-xl border border-ink/10 p-4';
 const inp='w-full rounded-lg border border-ink/20 bg-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-iron';
 const btn='rounded-lg px-4 py-2 font-semibold active:scale-95 transition';
 const btnP=btn+' bg-iron text-white', btnG=btn+' border border-ink/20 bg-white';
 
-function go(t){tab=t;render();scrollTo(0,0)}
+function go(t){tab=t;if(t!=='workout')EP=null;render();scrollTo(0,0)}
 function render(){
   $('#nav').innerHTML=TABS.map(([k,l])=>`<button onclick="go('${k}')" class="flex-1 py-2.5 text-center font-semibold border-b-2 ${tab===k?'border-iron text-iron':'border-transparent text-ink/50'}">${l}</button>`).join('');
   $('#app').innerHTML={schedule:vSchedule,workout:vWorkout,analysis:vAnalysis}[tab]();
@@ -94,7 +94,7 @@ function setSched(i,v){S.schedule[i]=v||null;save();toast('Schedule saved')}
 /* ---------- Workout ---------- */
 function pickPlan(id){
   const p=S.plans.find(x=>x.id===id);
-  D={pid:id,sets:p?p.ex.map(()=>[{w:'',r:''}]):[]};
+  D={pid:id,sets:p?p.ex.map(()=>[{w:'',r:''}]):[],extra:[]};
 }
 function vWorkout(){
   if(D.pid===null&&S.plans.length){const sp=S.schedule[dayIdx(new Date())];if(sp&&S.plans.some(p=>p.id===sp))pickPlan(sp)}
@@ -108,31 +108,53 @@ function vWorkout(){
         <span class="text-ink/40">×</span>
         <input type="number" inputmode="numeric" placeholder="reps" value="${s.r}" class="${inp}" oninput="D.sets[${j}][${i}].r=this.value"></div>`).join('')}
       <button class="${btnG} text-sm" onclick="D.sets[${j}].push({w:'',r:''});render()">Add set</button></div>`).join('');
+    h+=D.extra.map((x,k)=>`<div class="${card} mb-3"><div class="flex items-center justify-between mb-2"><div class="font-display text-xl font-bold">${esc(x.name)} <span class="text-xs font-sans font-medium text-flame">Extra</span></div><button class="text-sm text-red-700 px-2" onclick="D.extra.splice(${k},1);render()">Remove</button></div>
+      ${x.sets.map((s,i)=>`<div class="flex items-center gap-2 mb-2"><span class="w-12 text-sm text-ink/50">Set ${i+1}</span>
+        <input type="number" inputmode="decimal" placeholder="lbs" value="${s.w}" class="${inp}" oninput="D.extra[${k}].sets[${i}].w=this.value">
+        <span class="text-ink/40">×</span>
+        <input type="number" inputmode="numeric" placeholder="reps" value="${s.r}" class="${inp}" oninput="D.extra[${k}].sets[${i}].r=this.value"></div>`).join('')}
+      <button class="${btnG} text-sm" onclick="D.extra[${k}].sets.push({w:'',r:''});render()">Add set</button></div>`).join('');
+    h+=`<div class="${card} mb-3"><div class="font-semibold mb-2">Add an exercise</div><div class="flex gap-2"><input id="xn" list="exl" class="${inp}" placeholder="Exercise name"><button class="${btnP}" onclick="addExtra()">Add</button></div><datalist id="exl">${names().map(n=>`<option value="${esc(n)}">`).join('')}</datalist></div>`;
     h+=`<button class="${btn} bg-flame text-white w-full py-3 mb-6" onclick="finish()">Finish workout</button>`;
   }
-  h+=`<details class="${card} mb-3"><summary class="font-semibold cursor-pointer">Create a workout plan</summary>
-    <input id="pn" class="${inp} mt-3" placeholder="Plan name (e.g. Chest 1)">
-    <textarea id="pe" rows="5" class="${inp} mt-2" placeholder="One exercise per line"></textarea>
-    <button class="${btnP} mt-2" onclick="addPlan()">Save plan</button></details>`;
-  if(S.plans.length)h+=`<div class="${card}"><div class="font-semibold mb-2">Your plans</div>`+S.plans.map(p=>`<div class="flex items-center justify-between py-2 border-t border-ink/10 first:border-0"><div><div class="font-medium">${esc(p.name)}</div><div class="text-xs text-ink/50">${p.ex.map(esc).join(', ')}</div></div><button class="text-sm text-red-700 px-2" onclick="delPlan('${p.id}')">Delete</button></div>`).join('')+`</div>`;
+  const ep=EP&&S.plans.find(p=>p.id===EP);
+  h+=`<details id="pf" class="${card} mb-3" ${ep?'open':''}><summary class="font-semibold cursor-pointer">${ep?'Edit workout plan':'Create a workout plan'}</summary>
+    <input id="pn" value="${ep?esc(ep.name):''}" class="${inp} mt-3" placeholder="Plan name (e.g. Chest 1)">
+    <textarea id="pe" rows="5" class="${inp} mt-2" placeholder="One exercise per line">${ep?esc(ep.ex.join('\n')):''}</textarea>
+    <div class="flex gap-2 mt-2"><button class="${btnP}" onclick="addPlan()">${ep?'Save changes':'Save plan'}</button>${ep?`<button class="${btnG}" onclick="EP=null;render()">Cancel</button>`:''}</div></details>`;
+  if(S.plans.length)h+=`<div class="${card}"><div class="font-semibold mb-2">Your plans</div>`+S.plans.map(p=>`<div class="flex items-center justify-between py-2 border-t border-ink/10 first:border-0"><div><div class="font-medium">${esc(p.name)}</div><div class="text-xs text-ink/50">${p.ex.map(esc).join(', ')}</div></div><div class="flex"><button class="text-sm text-iron px-2" onclick="editPlan('${p.id}')">Edit</button><button class="text-sm text-red-700 px-2" onclick="delPlan('${p.id}')">Delete</button></div></div>`).join('')+`</div>`;
   return h;
 }
 function addPlan(){
   const name=$('#pn').value.trim(), ex=$('#pe').value.split('\n').map(x=>x.trim()).filter(Boolean);
   if(!name||!ex.length)return toast('Add a name and at least one exercise');
+  if(EP){
+    const p=S.plans.find(x=>x.id===EP);
+    if(p){
+      const old=p.ex;p.name=name;p.ex=ex;delete p.s;
+      if(D.pid===p.id)D.sets=ex.map(e=>{const k=old.indexOf(e);return k>=0?D.sets[k]:[{w:'',r:''}]});
+    }
+    EP=null;save();toast('Plan updated');return render();
+  }
   S.plans.push({id:'p'+Date.now(),name,ex});save();toast('Plan saved');render();
+}
+function editPlan(id){EP=id;render();$('#pf').scrollIntoView({block:'center'})}
+function addExtra(){
+  const n=$('#xn').value.trim();if(!n)return toast('Enter an exercise name');
+  D.extra.push({name:n,sets:[{w:'',r:''}]});render();
 }
 function delPlan(id){
   if(!confirm('Delete this plan? Logged workouts stay.'))return;
   S.plans=S.plans.filter(p=>p.id!==id);Object.keys(S.schedule).forEach(k=>{if(S.schedule[k]===id)S.schedule[k]=null});
-  if(D.pid===id)D={pid:null,sets:[]};save();render();
+  if(EP===id)EP=null;if(D.pid===id)D={pid:null,sets:[],extra:[]};save();render();
 }
 function finish(){
   const plan=S.plans.find(p=>p.id===D.pid), sets=[];
   plan.ex.forEach((e,j)=>D.sets[j].forEach(s=>{if(+s.w>=0&&s.w!==''&&+s.r>0)sets.push({ex:e,w:+s.w,r:+s.r})}));
+  D.extra.forEach(x=>x.sets.forEach(s=>{if(+s.w>=0&&s.w!==''&&+s.r>0)sets.push({ex:x.name,w:+s.w,r:+s.r})}));
   if(!sets.length)return toast('Enter at least one set');
   S.logs.push({id:'l'+Date.now(),date:iso(new Date()),plan:plan.name,sets});save();
-  D={pid:null,sets:[]};toast('Workout saved');go('analysis');
+  D={pid:null,sets:[],extra:[]};toast('Workout saved');go('analysis');
 }
 
 /* ---------- Analysis ---------- */
@@ -155,11 +177,13 @@ function vAnalysis(){
       <input type="number" inputmode="decimal" value="${m.orm??''}" class="${inp} !px-2 !py-1.5" onchange="setMax(${i},'orm',this.value)">
       <input type="number" inputmode="numeric" value="${m.reps??''}" class="${inp} !px-2 !py-1.5" onchange="setMax(${i},'reps',this.value)"></div>`}).join('')||'<p class="text-sm text-ink/50">Create a plan to see exercises here.</p>'}
     <div class="flex gap-2 mt-3"><input id="nx" class="${inp}" placeholder="Add another exercise"><button class="${btnG}" onclick="addEx()">Add</button></div></div>
+  <div class="${card} mb-4"><div class="font-semibold mb-2">Logged workouts</div>${S.logs.length?`<div class="max-h-72 overflow-y-auto">`+[...S.logs].sort((a,b)=>b.date.localeCompare(a.date)).map(l=>`<div class="flex items-center justify-between py-2 border-t border-ink/10 first:border-0"><div><div class="font-medium">${esc(l.plan)}</div><div class="text-xs text-ink/50">${l.date} · ${l.sets.length} sets</div></div><button class="text-sm text-red-700 px-2" onclick="delLog('${l.id}')">Delete</button></div>`).join('')+`</div>`:'<p class="text-sm text-ink/50">No workouts logged yet.</p>'}</div>
   <div class="${card}"><div class="font-semibold mb-3">Your data</div><div class="flex flex-wrap gap-2">
     <button class="${btnP}" onclick="exportData()">Export</button>
     <label class="${btnG} cursor-pointer">Import<input type="file" accept="application/json" class="hidden" onchange="importData(this.files[0])"></label>
     ${hasSample?`<button class="${btnG} text-red-700" onclick="clearSample()">Clear sample data</button>`:''}</div></div>`;
 }
+function delLog(id){if(!confirm('Delete this logged workout?'))return;S.logs=S.logs.filter(l=>l.id!==id);save();render();toast('Workout deleted')}
 function setMax(i,f,v){const n=NAMES[i];S.maxes[n]=S.maxes[n]||{};delete S.maxes[n].s;S.maxes[n][f]=v===''?'':+v;save();toast('Saved')}
 function addEx(){const n=$('#nx').value.trim();if(!n)return;S.maxes[n]=S.maxes[n]||{};save();render()}
 function drawChart(){
@@ -189,7 +213,7 @@ function clearSample(){
   S.logs=S.logs.filter(l=>!l.s);S.plans=S.plans.filter(p=>!p.s);
   Object.keys(S.maxes).forEach(k=>{if(S.maxes[k].s)delete S.maxes[k]});
   Object.keys(S.schedule).forEach(k=>{if(!S.plans.some(p=>p.id===S.schedule[k]))S.schedule[k]=null});
-  D={pid:null,sets:[]};save();render();toast('Sample data cleared');
+  D={pid:null,sets:[],extra:[]};save();render();toast('Sample data cleared');
 }
 render();
 </script>
